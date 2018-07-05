@@ -15,6 +15,8 @@ task_id = ''
 subtask_id = ''
 uuid = ''
 task_name = ''
+# 白名单(0) or 云平台(1)
+platform = ''
 
 
 # 获取配置
@@ -22,15 +24,17 @@ def get_config():
     global task_id
     global task_name
     global uuid
+    global platform
 
     with open(config.CONFIG_FILE, 'r') as f:
         task = str(base64.b64decode(f.read())).split(';')
     print(task)
     task_id = task[0][2:]
-    uuid = task[3][:-1]
+    uuid = task[4][:-1]
     task_name = task[1]
+    platform = task[2]
     with open(config.TARGET_LIST, 'w') as dns_f:
-        dns_f.write(task[2])
+        dns_f.write(task[3])
     if os.path.getsize(config.TARGET_LIST) <= 0:
         e = 'No target IP.'
         log.get_conf_fail()
@@ -62,16 +66,21 @@ def zdns_test():
 def masscan(mac):
     with open(config.MASSCAN_JSON, 'w') as f:
         f.write('')
-    prin('masscan: ' + config.MASSCAN + ' -iL ' + config.TARGET_LIST + ' -p53,U:53 --router-mac '+str(mac)[2:-3]+' -oJ '
-          + config.MASSCAN_JSON)
-    process = os.popen("route | grep '172' | grep 'tap' |head -n 1| awk '{print $8}' ") # return file
-    output = process.read()
-    process.close()
-    print('masscan: ' + config.MASSCAN + ' -iL ' + config.TARGET_LIST + ' -p53,U:53 --rate 1000 -e '+output[:-1]+' -oJ '
-          + config.MASSCAN_JSON)
-    subprocess.call([config.MASSCAN + ' -iL ' + config.TARGET_LIST + ' -p53,U:53 --rate 1000 -e '+output[:-1]+' --exclude 10.0.0.0/8,192.168.0.0/16,172.16.0.0/12,127.0.0.1/8,0.0.0.0/8 --wait=0 -oJ '+ config.MASSCAN_JSON], shell=True)
-    # subprocess.call([config.MASSCAN, '-iL', config.TARGET_LIST, '-pU:53',
-    #                  '-oJ', config.MASSCAN_JSON], shell=True)
+    if platform == '1':
+        process = os.popen("route | grep '172' | grep 'tap' |head -n 1| awk '{print $8}' ")  # return file
+        output = process.read()
+        output = ' -e ' + output[:-1]
+        process.close()
+    else:
+        output = ''
+    command = '{masscan} -iL {target_list} -p53,U:53 --rate 1000{output} --exclude 10.0.0.0/8,192.168.0.0/16,172.16.0.0/12,127.0.0.1/8,0.0.0.0/8 --wait=0 -oJ {mid_json}'.format(
+        masscan=config.MASSCAN,
+        target_list=config.TARGET_LIST,
+        output=output,
+        mid_json=config.MASSCAN_JSON
+    )
+    print(command)
+    subprocess.call([command], shell=True)
     dns = ''
     with open(config.MASSCAN_JSON, 'r') as f:
         temp = f.read().replace(" ", "").replace("\n", "")
