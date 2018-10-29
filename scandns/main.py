@@ -4,6 +4,7 @@ import sys
 import subprocess
 import json
 import traceback
+import codecs
 import xml.etree.ElementTree as ET
 import config
 import urllib.request as urllib2
@@ -17,6 +18,7 @@ uuid = ''
 task_name = ''
 # 白名单(0) or 云平台(1)
 platform = ''
+sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 
 
 # 获取配置
@@ -27,10 +29,10 @@ def get_config():
     global platform
 
     with open(config.CONFIG_FILE, 'r') as f:
-        task = str(base64.b64decode(f.read())).split(';')
+        task = base64.b64decode(f.read()).decode('utf-8').split(';')
     print(task)
-    task_id = task[0][2:]
-    uuid = task[4][:-1]
+    task_id = task[0]
+    uuid = task[4]
     task_name = task[1]
     platform = task[2]
     with open(config.TARGET_LIST, 'w') as dns_f:
@@ -211,7 +213,7 @@ if __name__ == '__main__':
     log.write_result()
     result = ','.join([task_id, task_name, subtask_id, ex_ip]) + "\n" + result+""
     try:
-        with open(os.path.join(config.RESULT_FILE, task_id + '.result'), 'w') as f:
+        with codecs.open(os.path.join(config.RESULT_FILE, task_id + '.result'), 'w', 'utf-8') as f:
             f.write(result)
         log.write_result_success()
     except Exception as e:
